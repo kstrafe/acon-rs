@@ -1,0 +1,6 @@
+[package]
+name = "acon"
+version = "0.1.0-alpha"
+authors = ["Bourgond Aries <macocio@gmail.com>"]
+
+[dependencies]
