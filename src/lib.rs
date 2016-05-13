@@ -29,55 +29,66 @@ impl FromStr for Acon {
 		let mut table = Table::new();
 		let mut stack = vec![];
 		let mut lines = s.lines();
-		enum State { Table, Array }
+		#[derive(Clone, Copy)]
+		enum State { Array, Table }
+		struct Node {
+			name: String,
+			state: State,
+			table: Table,
+		}
 
-		stack.push((State::Table, table));
+		stack.push(Node {
+			name: "".to_string(),
+			state: State::Table,
+			table: table
+		});
+
+		fn get_state(stack: &Vec<Node>) -> Option<State> {
+			if let Some(last) = stack.last() {
+				Some(last.state)
+			} else {
+				None
+			}
+		};
+
+		fn push_state(stack: &mut Vec<Node>, name: String, state: State) {
+
+		}
 
 		for line in lines {
 
-			let (state, table);
-			if let Some(last) = stack.last_mut() {
-				state = &mut last.0;
-				table = &mut last.1;
-			} else {
-				break;
-			}
+			if let Some(state) = get_state(&stack) {
 
-			let mut words = line.split_whitespace();
+				let mut words = line.split_whitespace();
 
-			match *state {
-				State::Table => {
-					if let Some(word) = words.next() {
-						match word {
-							"{" => {}
-							"}" => {}
-							"[" => {
-								if let Some(word) = words.next() {
-								} else {
+				match state {
+					State::Table => {
+						if let Some(word) = words.next() {
+							match word {
+								"{" => {}
+								"}" => {}
+								"[" => {}
+								"]" => {}
+								name @ _ => { }
+							}
+						}
+					}
+					State::Array => {
+						if let Some(word) = words.next() {
+							match word {
+								"{" => {}
+								"}" => {}
+								"[" => {}
+								"]" => {}
+								name @ _ => {
 								}
 							}
-							"]" => {}
-							name @ _ => {
-								let mut acc;
-								acc = words.fold("".to_string(), |acc, x| acc + " " + x);
-								let acc = acc.trim().to_string();
-								table.insert(name.to_string(), Value::String(acc));
-							}
 						}
 					}
 				}
-				State::Array => {
-					if let Some(word) = words.next() {
-						match word {
-							"{" => {}
-							"}" => {}
-							"[" => {}
-							"]" => {}
-							name @ _ => {
-							}
-						}
-					}
-				}
+
+			} else {
+				panic!("{}", "There is no state!");
 			}
 		}
 
