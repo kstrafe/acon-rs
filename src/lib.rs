@@ -101,7 +101,7 @@ impl FromStr for Acon {
 					Value::String(_)
 						=> return Err(AconError::InternalStringTop(Some(current_line))),
 					Value::Table(ref mut table)
-						=> { append_entry_to_top_table(table, &first, &mut words); }
+						=> { try!(append_entry_to_top_table(table, &first, &mut words, current_line)); }
 				}
 			} else {
 				return Err(AconError::MissingStackTop(Some(current_line)));
@@ -203,15 +203,20 @@ impl FromStr for Acon {
 
 		fn append_entry_to_top_table(table: &mut Table,
 		                             first: &Option<&str>,
-		                             words: &mut SplitWhitespace) {
+		                             words: &mut SplitWhitespace,
+		                             line: usize) -> Result<(), AconError> {
 			match first {
 				&Some(ref key) => {
+					if table.contains_key(&key.to_string()) {
+						return Err(AconError::OverwritingKey(Some(line)));
+					}
 					let acc = words.fold("".to_string(), |acc, x| acc + " " + x);
 					let acc = acc.trim();
 					table.insert(key.to_string(), Value::String(acc.to_string()));
 				}
 				&None => {}
 			}
+			Ok(())
 		}
 		// END HELPER FUNCTIONS //////////////////////////////////////////////
 
@@ -226,8 +231,6 @@ mod tests {
 		let value = r#"
 		key value
 		key2 value2
-		key overwrite
-		a a
 		a a
 		[
 			0
