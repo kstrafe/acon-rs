@@ -1,3 +1,14 @@
+//! An ACON-parsing library
+//!
+//! This library is an ACON-to-tree parser that deserializes text.
+//!
+
+//#![deny(missing_docs)]
+#![cfg_attr(test, deny(warnings))]
+// #![feature(plugin)]
+// #![plugin(clippy)]
+
+
 #[cfg(test)]
 mod tests;
 
