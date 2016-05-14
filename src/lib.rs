@@ -11,13 +11,57 @@ pub enum Value {
 pub type Array = Vec<Value>;
 pub type Table = BTreeMap<String, Value>;
 
+#[derive(PartialEq, Clone, Debug)]
 struct Acon {
 	table: Table,
 }
 
 #[derive(PartialEq, Clone, Debug)]
 enum AconError {
-	Error
+	ExcessiveClosingDelimiter(Option<usize>),
+	InternalStringTop(Option<usize>),
+	MissingStackTop(Option<usize>),
+	TopNodeIsArray,
+	WrongClosingDelimiterExpectedArray(Option<usize>),
+	WrongClosingDelimiterExpectedTable(Option<usize>),
+}
+
+impl AconError {
+	fn reason(&self) -> String {
+		use AconError::*;
+		match *self {
+			ExcessiveClosingDelimiter(line) => {
+				let first = match line { Some(line) => format!("On line {}, t", line), None => "T".to_string() };
+				format!("{}here's a closing delimiter that has no matching opening delimiter. Note that
+all delimiters must be the first word on a line to count as such. The only delimiters are {}, {}, [, ], and $.",
+				first, "{", "}")
+			}
+			InternalStringTop(line) => {
+				let first = match line { Some(line) => format!("On line {}, t", line), None => "T".to_string() };
+				format!("{}here's a string on the top of the internal parse stack. This is impossible unless there is a
+bug in the parser. Please report this along with the input to the repository maintainer of ACON.", first)
+			}
+			MissingStackTop(line) => {
+				let first = match line { Some(line) => format!("On line {}, t", line), None => "T".to_string() };
+				format!("{}he top of the stack is missing. This indicates an internal error, as it's never supposed to
+happen. Please contact the maintainer of the ACON repository.", first)
+			}
+			TopNodeIsArray => {
+				format!("The top of the stack is an array. This indicates that there is an unterminated array all the way
+until the end of the input. Try appending a ']' to the input to see if this solves the issue.")
+			}
+			WrongClosingDelimiterExpectedArray(line) => {
+				let first = match line { Some(line) => format!("On line {}, t", line), None => "T".to_string() };
+				format!("{}he closing delimiter did not match the array closing delimiter ]. Make sure all delimiters
+match up in the input. Some editors can help you by jumping from/to each delimiter.", first)
+			}
+			WrongClosingDelimiterExpectedTable(line) => {
+				let first = match line { Some(line) => format!("On line {}, t", line), None => "T".to_string() };
+				format!("{}he closing delimiter did not match the table closing delimiter {}. Make sure all delimiters
+until the end of the input. Try appending a ']' to the input to see if this solves the issue.", first, "}")
+			}
+		}
+	}
 }
 
 impl FromStr for Acon {
@@ -25,14 +69,13 @@ impl FromStr for Acon {
 
 	fn from_str(s: &str) -> Result<Self, Self::Err> {
 		let mut stack = vec![];
-		let mut lines = s.lines();
-
-		stack.push(Node {
-			name: "".to_string(),
-			value: Value::Table(Table::new()),
-		});
+		let lines = s.lines();
+		let mut current_line = 0usize;
+		push_base_table(&mut stack);
 
 		for line in lines {
+			current_line += 1;
+
 			let mut words = line.split_whitespace();
 
 			let mut first = None;
@@ -41,45 +84,40 @@ impl FromStr for Acon {
 				match word {
 					"{" => { push_table(&mut words, &mut stack); continue; }
 					"[" => { push_array(&mut words, &mut stack); continue; }
-					"}" | "]" => { close_array_or_table(&mut stack); continue; }
+					word @ "}" | word @ "]" => { try!(close_array_or_table(word, &mut stack, current_line)); continue; }
 					_ => { println!("Unrecognized first item, control flow to stacker"); }
 				}
 			}
 
-			// Handle members, array elems etc. This
 			if let Some(top) = stack.last_mut() {
 				match top.value {
-					Value::Array(ref mut array) => { append_line_to_top_array(array,
-					                                                          &first,
-					                                                          &mut words); }
-					Value::String(ref mut string) => {
-						println!("The stack can not hold a string, internal error!");
-					}
-					Value::Table(ref mut table) => { append_entry_to_top_table(table,
-					                                                           &first,
-					                                                           &mut words); }
+					Value::Array(ref mut array)
+						=> { append_line_to_top_array(array, &first, &mut words); }
+					Value::String(_)
+						=> return Err(AconError::InternalStringTop(Some(current_line))),
+					Value::Table(ref mut table)
+						=> { append_entry_to_top_table(table, &first, &mut words); }
 				}
 			} else {
-				println!("Somehow there's no last_mut on {}", line!());
+				return Err(AconError::MissingStackTop(Some(current_line)));
 			}
 		}
 
 		return {
 			if let Some(node) = stack.pop() {
 				match node.value {
-					Value::Array(array) => Err(AconError::Error),
-					Value::String(string) => Err(AconError::Error),
+					Value::Array(_) => Err(AconError::TopNodeIsArray),
+					Value::String(_) => Err(AconError::InternalStringTop(Some(current_line))),
 					Value::Table(table) => Ok(Acon { table: table }),
 				}
 			} else {
-				println!("Somehow there's no last_mut on {}", line!());
-				Err(AconError::Error)
+				Err(AconError::MissingStackTop(None))
 			}
 		};
 
 
 		// BEGIN HELPER STRUCTURE ////////////////////////////////////////////
-		use std::str::{Lines, SplitWhitespace};
+		use std::str::SplitWhitespace;
 		struct Node {
 			name: String,
 			value: Value,
@@ -87,6 +125,13 @@ impl FromStr for Acon {
 		// END HELPER STRUCTURE //////////////////////////////////////////////
 
 		// BEGIN HELPER FUNCTIONS ////////////////////////////////////////////
+		fn push_base_table(stack: &mut Vec<Node>) {
+			stack.push(Node {
+				name: "".to_string(),
+				value: Value::Table(Table::new()),
+			});
+		}
+
 		fn push_array(words: &mut SplitWhitespace, stack: &mut Vec<Node>) {
 			let name = words.next().unwrap_or("");
 			stack.push(Node {
@@ -103,8 +148,17 @@ impl FromStr for Acon {
 			});
 		}
 
-		fn close_array_or_table(stack: &mut Vec<Node>) {
+		fn close_array_or_table(word: &str, stack: &mut Vec<Node>, line: usize) -> Result<(), AconError> {
 			if let Some(top) = stack.pop() {
+				match top.value {
+					Value::Array(_) if word != "]"
+						=> return Err(AconError::WrongClosingDelimiterExpectedArray(Some(line))),
+					Value::String(_) if word != "]"
+						=> return Err(AconError::InternalStringTop(Some(line))),
+					Value::Table(_) if word != "}"
+						=> return Err(AconError::WrongClosingDelimiterExpectedTable(Some(line))),
+					_ => {}
+				}
 				if let Some(node) = stack.last_mut() {
 					match node.value {
 						Value::Array(ref mut array) => {
@@ -116,16 +170,15 @@ impl FromStr for Acon {
 								array.push(Value::Table(new));
 							}
 						}
-						Value::String(ref mut string) => {}
-						Value::Table(ref mut table) => {
-							table.insert(top.name, top.value);
-						}
+						Value::String(_) => { return Err(AconError::InternalStringTop(Some(line))); }
+						Value::Table(ref mut table) => { table.insert(top.name, top.value); }
 					}
+					Ok(())
 				} else {
-					println!("{} found without anything on the stack!", "}");
+					Err(AconError::ExcessiveClosingDelimiter(Some(line)))
 				}
 			} else {
-				println!("{} found without anything on the stack!", "}");
+				Err(AconError::MissingStackTop(Some(line)))
 			}
 		}
 
@@ -133,7 +186,6 @@ impl FromStr for Acon {
 		                            first: &Option<&str>,
 		                            words: &mut SplitWhitespace) {
 			let first = first.unwrap_or("");
-			let acc = String::new();
 			let acc = words.fold(first.to_string(), |acc, x| acc + " " + x);
 			let acc = acc.trim();
 			array.push(Value::String(acc.to_string()));
@@ -143,7 +195,6 @@ impl FromStr for Acon {
 		                             words: &mut SplitWhitespace) {
 			match first {
 				&Some(ref key) => {
-					let acc = String::new();
 					let acc = words.fold("".to_string(), |acc, x| acc + " " + x);
 					let acc = acc.trim();
 					table.insert(key.to_string(), Value::String(acc.to_string()));
@@ -162,10 +213,16 @@ mod tests {
 	fn it_works() {
 		use Acon;
 		let value = r#"
-		[ array
-		]
+		}
 		"#;
-		let acon = value.parse::<Acon>().unwrap();
-		println!("{:?}", acon.table);
+		let acon = value.parse::<Acon>();
+		match acon {
+			Err(err @ _) => {
+				println!("{}", err.reason());
+			}
+			Ok(table) => {
+				println!("{:?}", table);
+			}
+		}
 	}
 }
