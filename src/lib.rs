@@ -68,7 +68,15 @@ impl FromStr for Acon {
 						if let Some(top) = stack.pop() {
 							if let Some(node) = stack.last_mut() {
 								match node.value {
-									Value::Array(ref mut array) => {}
+									Value::Array(ref mut array) => {
+										if top.name == "" {
+											array.push(top.value);
+										} else {
+											let mut new = Table::new();
+											new.insert(top.name, top.value);
+											array.push(Value::Table(new));
+										}
+									}
 									Value::String(ref mut string) => {}
 									Value::Table(ref mut table) => {
 										table.insert(top.name, top.value);
@@ -116,7 +124,9 @@ impl FromStr for Acon {
 						let acc = acc.trim();
 						array.push(Value::String(acc.to_string()));
 					}
-					Value::String(ref mut string) => {}
+					Value::String(ref mut string) => {
+						println!("The stack can not hold a string, internal error!");
+					}
 					Value::Table(ref mut table) => {
 						match first {
 							Some(key) => {
@@ -134,6 +144,7 @@ impl FromStr for Acon {
 			}
 		}
 
+		// Handle return
 		if let Some(node) = stack.pop() {
 			match node.value {
 				Value::Array(array) => Err(AconError::Error),
@@ -160,6 +171,9 @@ mod tests {
 				0 1 2 3
 				4 5 6 7
 
+				{ Hello
+					My friends
+				}
 			]
 		}"#;
 		let acon = value.parse::<Acon>().unwrap();
