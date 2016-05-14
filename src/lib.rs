@@ -22,6 +22,7 @@ enum AconError {
 	InternalStringTop(Option<usize>),
 	MissingStackTop(Option<usize>),
 	TopNodeIsArray,
+	OverwritingKey(Option<usize>),
 	WrongClosingDelimiterExpectedArray(Option<usize>),
 	WrongClosingDelimiterExpectedTable(Option<usize>),
 }
@@ -49,6 +50,10 @@ happen. Please contact the maintainer of the ACON repository.", first)
 			TopNodeIsArray => {
 				format!("The top of the stack is an array. This indicates that there is an unterminated array all the way
 until the end of the input. Try appending a ']' to the input to see if this solves the issue.")
+			}
+			OverwritingKey(line) => {
+				let first = match line { Some(line) => format!("On line {}, t", line), None => "T".to_string() };
+				format!("{}he key is already present in the table.", first)
 			}
 			WrongClosingDelimiterExpectedArray(line) => {
 				let first = match line { Some(line) => format!("On line {}, t", line), None => "T".to_string() };
@@ -85,7 +90,7 @@ impl FromStr for Acon {
 					"{" => { push_table(&mut words, &mut stack); continue; }
 					"[" => { push_array(&mut words, &mut stack); continue; }
 					word @ "}" | word @ "]" => { try!(close_array_or_table(word, &mut stack, current_line)); continue; }
-					_ => { println!("Unrecognized first item, control flow to stacker"); }
+					_ => { }
 				}
 			}
 
@@ -171,7 +176,12 @@ impl FromStr for Acon {
 							}
 						}
 						Value::String(_) => { return Err(AconError::InternalStringTop(Some(line))); }
-						Value::Table(ref mut table) => { table.insert(top.name, top.value); }
+						Value::Table(ref mut table) => {
+							if table.contains_key(&top.name) {
+								return Err(AconError::OverwritingKey(Some(line)));
+							}
+							table.insert(top.name, top.value);
+						}
 					}
 					Ok(())
 				} else {
@@ -191,7 +201,8 @@ impl FromStr for Acon {
 			array.push(Value::String(acc.to_string()));
 		}
 
-		fn append_entry_to_top_table(table: &mut Table, first: &Option<&str>,
+		fn append_entry_to_top_table(table: &mut Table,
+		                             first: &Option<&str>,
 		                             words: &mut SplitWhitespace) {
 			match first {
 				&Some(ref key) => {
@@ -213,6 +224,20 @@ mod tests {
 	fn it_works() {
 		use Acon;
 		let value = r#"
+		key value
+		key2 value2
+		key overwrite
+		a a
+		a a
+		[
+			0
+			1
+			2
+			3
+			4
+			5
+		]
+		{ a
 		}
 		"#;
 		let acon = value.parse::<Acon>();
