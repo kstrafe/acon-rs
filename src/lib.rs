@@ -56,6 +56,14 @@ impl FromStr for Acon {
 						});
 						continue;
 					}
+					"[" => {
+						let name = words.next().unwrap_or("");
+						stack.push(Node {
+							name: name.to_string(),
+							value: Value::Array(Array::new()),
+						});
+						continue;
+					}
 					"}" => {
 						if let Some(top) = stack.pop() {
 							if let Some(node) = stack.last_mut() {
@@ -74,6 +82,24 @@ impl FromStr for Acon {
 						}
 						continue;
 					}
+					"]" => {
+						if let Some(top) = stack.pop() {
+							if let Some(node) = stack.last_mut() {
+								match node.value {
+									Value::Array(ref mut array) => {}
+									Value::String(ref mut string) => {}
+									Value::Table(ref mut table) => {
+										table.insert(top.name, top.value);
+									}
+								}
+							} else {
+								println!("{} found without anything on the stack!", "]");
+							}
+						} else {
+							println!("{} found without anything on the stack!", "]");
+						}
+						continue;
+					}
 					_ => {
 						println!("Unrecognized first item, control flow to stacker");
 					}
@@ -83,7 +109,13 @@ impl FromStr for Acon {
 			// Handle members, array elems etc. This
 			if let Some(top) = stack.last_mut() {
 				match top.value {
-					Value::Array(ref mut array) => {}
+					Value::Array(ref mut array) => {
+						let first = first.unwrap_or("");
+						let acc = String::new();
+						let acc = words.fold(first.to_string(), |acc, x| acc + " " + x);
+						let acc = acc.trim();
+						array.push(Value::String(acc.to_string()));
+					}
 					Value::String(ref mut string) => {}
 					Value::Table(ref mut table) => {
 						match first {
