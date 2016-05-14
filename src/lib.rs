@@ -4,10 +4,9 @@
 //!
 
 //#![deny(missing_docs)]
-#![cfg_attr(test, deny(warnings))]
-// #![feature(plugin)]
-// #![plugin(clippy)]
-
+#![feature(plugin)]
+#![plugin(clippy)]
+#![allow(items_after_statements)]
 
 #[cfg(test)]
 mod tests;
@@ -48,7 +47,7 @@ impl Acon {
 	}
 
 	pub fn path(&self, path: &str) -> Option<&Acon> {
-		let paths = path.split(".");
+		let paths = path.split('.');
 		let mut current = self;
 		for path in paths {
 			let owned = current;
@@ -61,7 +60,7 @@ impl Acon {
 	}
 
 	pub fn path_mut(&mut self, path: &str) -> Option<&mut Acon> {
-		let paths = path.split(".");
+		let paths = path.split('.');
 		let mut current = self;
 		for path in paths {
 			let owned = current;
@@ -133,8 +132,8 @@ bug in the parser. Please report this along with the input to the repository mai
 happen. Please contact the maintainer of the ACON repository.", first)
 			}
 			TopNodeIsArray => {
-				format!("The top of the stack is an array. This indicates that there is an unterminated array all the way
-until the end of the input. Try appending a ']' to the input to see if this solves the issue.")
+				"The top of the stack is an array. This indicates that there is an unterminated array all the way
+until the end of the input. Try appending a ']' to the input to see if this solves the issue.".to_string()
 			}
 			OverwritingKey(line) => {
 				let first = match line { Some(line) => format!("On line {}, t", line), None => "T".to_string() };
@@ -319,16 +318,13 @@ impl FromStr for Acon {
 		                             first: &Option<&str>,
 		                             words: &mut SplitWhitespace,
 		                             line: usize) -> Result<(), AconError> {
-			match first {
-				&Some(ref key) => {
-					if table.contains_key(&key.to_string()) {
-						return Err(AconError::OverwritingKey(Some(line)));
-					}
-					let acc = words.fold("".to_string(), |acc, x| acc + " " + x);
-					let acc = acc.trim();
-					table.insert(key.to_string(), Acon::String(acc.to_string()));
+			if let Some(ref key) = *first {
+				if table.contains_key(&key.to_string()) {
+					return Err(AconError::OverwritingKey(Some(line)));
 				}
-				&None => {}
+				let acc = words.fold("".to_string(), |acc, x| acc + " " + x);
+				let acc = acc.trim();
+				table.insert(key.to_string(), Acon::String(acc.to_string()));
 			}
 			Ok(())
 		}
