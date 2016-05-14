@@ -153,6 +153,58 @@ until the end of the input. Try appending a ']' to the input to see if this solv
 	}
 }
 
+impl std::fmt::Display for Acon {
+	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+		match *self {
+			Acon::Array(ref array) => {}
+			Acon::String(ref string) => {}
+			Acon::Table(ref table) => {
+				for (key, value) in table {
+					try!(recurse(key, value, f, 0));
+				}
+			}
+		}
+		return Ok(());
+
+		fn recurse(key: &str, acon: &Acon, f: &mut std::fmt::Formatter,
+		           depth: usize) -> std::fmt::Result {
+			let indent = String::from_utf8(vec![b'\t'; depth]).unwrap();
+			macro_rules! wrt {
+				( $( $x:expr ),* ) => {{
+					try!(f.write_str(&indent));
+					$(try!(f.write_str($x));)*
+				}
+				};
+			}
+			macro_rules! nl {
+				() => { try!(f.write_str("\n")); }
+			}
+			match *acon {
+				Acon::Array(ref array) => {
+					wrt!("[ ", key, "\n");
+					for value in array {
+						try!(recurse("", value, f, depth + 1));
+					}
+					nl!();
+					wrt!("]\n");
+				}
+				Acon::String(ref string) => {
+					wrt!(key, " ", string, "\n");
+				}
+				Acon::Table(ref table) => {
+					wrt!("{ ", key, "\n");
+					for (key, value) in table {
+						try!(recurse(key, value, f, depth + 1));
+					}
+					nl!();
+					wrt!("}\n");
+				}
+			}
+			Ok(())
+		}
+	}
+}
+
 impl FromStr for Acon {
 	type Err = AconError;
 
