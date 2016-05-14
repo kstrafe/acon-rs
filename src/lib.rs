@@ -15,28 +15,28 @@ pub enum Acon {
 }
 
 impl Acon {
-	fn array(&self) -> &Array {
+	pub fn array(&self) -> &Array {
 		match *self {
 			Acon::Array(ref array) => array,
 			_ => panic!("Value is not an array"),
 		}
 	}
 
-	fn string(&self) -> &String {
+	pub fn string(&self) -> &String {
 		match *self {
 			Acon::String(ref string) => string,
 			_ => panic!("Value is not a string"),
 		}
 	}
 
-	fn table(&self) -> &Table {
+	pub fn table(&self) -> &Table {
 		match *self {
 			Acon::Table(ref table) => table,
 			_ => panic!("Value is not a table"),
 		}
 	}
 
-	fn path(&self, path: &str) -> Option<&Acon> {
+	pub fn path(&self, path: &str) -> Option<&Acon> {
 		let paths = path.split(".");
 		let mut current = self;
 		for path in paths {
@@ -49,7 +49,7 @@ impl Acon {
 		Some(current)
 	}
 
-	fn path_mut(&mut self, path: &str) -> Option<&mut Acon> {
+	pub fn path_mut(&mut self, path: &str) -> Option<&mut Acon> {
 		let paths = path.split(".");
 		let mut current = self;
 		for path in paths {
@@ -62,7 +62,7 @@ impl Acon {
 		Some(current)
 	}
 
-	fn get(&self, path: &str) -> Option<&Acon> {
+	pub fn get(&self, path: &str) -> Option<&Acon> {
 		match *self {
 			Acon::Array(ref array) => {
 				match path.parse::<usize>() {
@@ -75,7 +75,7 @@ impl Acon {
 		}
 	}
 
-	fn get_mut(&mut self, path: &str) -> Option<&mut Acon> {
+	pub fn get_mut(&mut self, path: &str) -> Option<&mut Acon> {
 		match *self {
 			Acon::Array(ref mut array) => {
 				match path.parse::<usize>() {
