@@ -8,6 +8,27 @@ pub enum Value {
 	Table(Table),
 }
 
+impl Value {
+	fn array(&self) -> &Array {
+		match *self {
+			Value::Array(ref array) => array,
+			_ => panic!("Value is not an array"),
+		}
+	}
+	fn string(&self) -> &String {
+		match *self {
+			Value::String(ref string) => string,
+			_ => panic!("Value is not a string"),
+		}
+	}
+	fn table(&self) -> &Table {
+		match *self {
+			Value::Table(ref table) => table,
+			_ => panic!("Value is not a table"),
+		}
+	}
+}
+
 pub type Array = Vec<Value>;
 pub type Table = BTreeMap<String, Value>;
 
@@ -27,6 +48,7 @@ enum AconError {
 	WrongClosingDelimiterExpectedTable(Option<usize>),
 }
 
+#[allow(dead_code)]
 impl AconError {
 	fn reason(&self) -> String {
 		use AconError::*;
@@ -225,32 +247,91 @@ impl FromStr for Acon {
 
 #[cfg(test)]
 mod tests {
+	use {Acon, AconError};
+
 	#[test]
-	fn it_works() {
-		use Acon;
+	fn neg_duplicate_keys() {
 		let value = r#"
-		key value
-		key2 value2
-		a a
-		[
-			0
-			1
-			2
-			3
-			4
-			5
-		]
-		{ a
-		}
+			key value1
+			key2 value2
+			key value3
+			key2 value4
 		"#;
 		let acon = value.parse::<Acon>();
-		match acon {
-			Err(err @ _) => {
-				println!("{}", err.reason());
-			}
-			Ok(table) => {
-				println!("{:?}", table);
-			}
-		}
+		assert_eq!(acon, Err(AconError::OverwritingKey(Some(4))));
 	}
+
+	#[test]
+	fn neg_duplicate_keys_table() {
+		let value = r#"
+			key value1
+			key2 value2
+			{ key
+			}
+			key2 value4
+		"#;
+		let acon = value.parse::<Acon>();
+		assert_eq!(acon, Err(AconError::OverwritingKey(Some(5))));
+	}
+
+	#[test]
+	fn neg_duplicate_keys_array() {
+		let value = r#"
+			key value1
+			key2 value2
+			[ key
+			]
+			key2 value4
+		"#;
+		let acon = value.parse::<Acon>();
+		assert_eq!(acon, Err(AconError::OverwritingKey(Some(5))));
+	}
+
+	#[test]
+	fn neg_duplicate_keys_nested() {
+		let value = r#"
+			{ key
+				{ key
+					key value
+					[
+					]
+					key value
+				}
+			}
+		"#;
+		let acon = value.parse::<Acon>();
+		assert_eq!(acon, Err(AconError::OverwritingKey(Some(7))));
+	}
+
+
+	#[test]
+	fn inspect_message() {
+		let value = r#"
+			[
+				{ message
+					recipient me
+					sender you
+					[ content
+						Hey what is this ACON thingy all about?
+						I mean, we've got TOML, JSON, XML, and SGML.
+						Why do we need this data serilization language?
+					]
+				}
+				{ message
+					sender me
+					recipient you
+					[ content
+						ACON means Awk-Compatible Object Notation.
+						TOML, JSON, etc are great serialization languages, but they're quite complex.
+						We need tools and languages that are easily
+						parsable and friendly for bash scripting.
+						ACON allows just that!
+					]
+				}
+			]
+		"#;
+		let acon = value.parse::<Acon>();
+		assert_eq!(acon.unwrap().table.get("").unwrap().array().get(1).unwrap().table().get("message").unwrap().table().get("recipient").unwrap().string(), "you");
+	}
+
 }
