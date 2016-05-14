@@ -85,3 +85,54 @@ fn inspect_message() {
 	           .get("message").unwrap().table().get("recipient").unwrap().string(), "you");
 	assert_eq!(acon.path(".1.message.recipient"), Some(&Acon::String("you".to_string())));
 }
+
+#[test]
+fn inspect_dollar_closing() {
+	let value = r#"
+	{ table
+		{ table
+			{ table
+				[ array
+					{ table
+						key value
+
+	$ This word as the first word on a line closes all nestings
+
+	[ reason
+		I want to get rid of it all.
+		If a program crashes whilst serializing (like a script that
+		gets an error). Then another program can append $ to the
+		end of the stream, clearing that stream.
+	]
+	"#;
+	let acon = value.parse::<Acon>().unwrap();
+	assert_eq!(acon.path("table.table.table.array.0.table.key"), Some(&Acon::String("value".to_string())));
+}
+
+#[test]
+fn dollar_closing_array_whitespace() {
+	let value = r#"
+	[ array
+
+
+
+	$
+	"#;
+	let acon = value.parse::<Acon>().unwrap();
+	assert_eq!(acon.path("array.2"), Some(&Acon::String("".to_string())));
+}
+
+#[test]
+fn dollar_duplicate() {
+	let value = r#"
+	{ table
+		key value
+
+	$
+	{ table
+
+	$
+	"#;
+	let acon = value.parse::<Acon>();
+	assert_eq!(acon, Err(AconError::OverwritingKey(Some(8))));
+}

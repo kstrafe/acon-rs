@@ -175,6 +175,7 @@ impl FromStr for Acon {
 					"{" => { push_table(&mut words, &mut stack); continue; }
 					"[" => { push_array(&mut words, &mut stack); continue; }
 					word @ "}" | word @ "]" => { try!(close_array_or_table(word, &mut stack, current_line)); continue; }
+					"$" => { try!(close_all_nestings(&mut stack, current_line)); continue; }
 					_ => { }
 				}
 			}
@@ -236,6 +237,34 @@ impl FromStr for Acon {
 				name: name.to_string(),
 				value: Acon::Table(Table::new()),
 			});
+		}
+
+		fn close_all_nestings(stack: &mut Vec<Node>, line: usize) -> Result<(), AconError> {
+			while stack.len() > 1 {
+				if let Some(top) = stack.pop() {
+					if let Some(node) = stack.last_mut() {
+						match node.value {
+							Acon::Array(ref mut array) => {
+								if top.name == "" {
+									array.push(top.value);
+								} else {
+									let mut new = Table::new();
+									new.insert(top.name, top.value);
+									array.push(Acon::Table(new));
+								}
+							}
+							Acon::String(_) => { return Err(AconError::InternalStringTop(Some(line))); }
+							Acon::Table(ref mut table) => {
+								if table.contains_key(&top.name) {
+									return Err(AconError::OverwritingKey(Some(line)));
+								}
+								table.insert(top.name, top.value);
+							}
+						}
+					}
+				}
+			}
+			Ok(())
 		}
 
 		fn close_array_or_table(word: &str, stack: &mut Vec<Node>, line: usize) -> Result<(), AconError> {
