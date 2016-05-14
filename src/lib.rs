@@ -156,8 +156,12 @@ until the end of the input. Try appending a ']' to the input to see if this solv
 impl std::fmt::Display for Acon {
 	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
 		match *self {
-			Acon::Array(ref array) => {}
-			Acon::String(ref string) => {}
+			Acon::Array(ref array) => {
+				return Err(std::fmt::Error);
+			}
+			Acon::String(ref string) => {
+				return Err(std::fmt::Error);
+			}
 			Acon::Table(ref table) => {
 				for (key, value) in table {
 					try!(recurse(key, value, f, 0));
