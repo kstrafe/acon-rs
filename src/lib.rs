@@ -1,44 +1,96 @@
+#[cfg(test)]
+mod tests;
+
 use std::collections::BTreeMap;
 use std::str::FromStr;
 
+pub type Array = Vec<Acon>;
+pub type Table = BTreeMap<String, Acon>;
+
 #[derive(PartialEq, Clone, Debug)]
-pub enum Value {
+pub enum Acon {
 	Array(Array),
 	String(String),
 	Table(Table),
 }
 
-impl Value {
+impl Acon {
 	fn array(&self) -> &Array {
 		match *self {
-			Value::Array(ref array) => array,
+			Acon::Array(ref array) => array,
 			_ => panic!("Value is not an array"),
 		}
 	}
+
 	fn string(&self) -> &String {
 		match *self {
-			Value::String(ref string) => string,
+			Acon::String(ref string) => string,
 			_ => panic!("Value is not a string"),
 		}
 	}
+
 	fn table(&self) -> &Table {
 		match *self {
-			Value::Table(ref table) => table,
+			Acon::Table(ref table) => table,
 			_ => panic!("Value is not a table"),
+		}
+	}
+
+	fn path(&self, path: &str) -> Option<&Acon> {
+		let paths = path.split(".");
+		let mut current = self;
+		for path in paths {
+			let owned = current;
+			current = match owned.get(path) {
+				Some(ref acon) => acon,
+				None => return None,
+			}
+		}
+		Some(current)
+	}
+
+	fn path_mut(&mut self, path: &str) -> Option<&mut Acon> {
+		let paths = path.split(".");
+		let mut current = self;
+		for path in paths {
+			let owned = current;
+			current = match owned.get_mut(path) {
+				Some(acon) => acon,
+				None => return None,
+			}
+		}
+		Some(current)
+	}
+
+	fn get(&self, path: &str) -> Option<&Acon> {
+		match *self {
+			Acon::Array(ref array) => {
+				match path.parse::<usize>() {
+					Ok(value) => array.get(value),
+					_ => None,
+				}
+			}
+			Acon::String(_) => None,
+			Acon::Table(ref table) => table.get(path),
+		}
+	}
+
+	fn get_mut(&mut self, path: &str) -> Option<&mut Acon> {
+		match *self {
+			Acon::Array(ref mut array) => {
+				match path.parse::<usize>() {
+					Ok(value) => array.get_mut(value),
+					_ => None,
+				}
+			}
+			Acon::String(_) => None,
+			Acon::Table(ref mut table) => table.get_mut(path),
 		}
 	}
 }
 
-pub type Array = Vec<Value>;
-pub type Table = BTreeMap<String, Value>;
-
 #[derive(PartialEq, Clone, Debug)]
-struct Acon {
-	table: Table,
-}
-
-#[derive(PartialEq, Clone, Debug)]
-enum AconError {
+pub enum AconError {
 	ExcessiveClosingDelimiter(Option<usize>),
 	InternalStringTop(Option<usize>),
 	MissingStackTop(Option<usize>),
@@ -118,11 +170,11 @@ impl FromStr for Acon {
 
 			if let Some(top) = stack.last_mut() {
 				match top.value {
-					Value::Array(ref mut array)
+					Acon::Array(ref mut array)
 						=> { append_line_to_top_array(array, &first, &mut words); }
-					Value::String(_)
+					Acon::String(_)
 						=> return Err(AconError::InternalStringTop(Some(current_line))),
-					Value::Table(ref mut table)
+					Acon::Table(ref mut table)
 						=> { try!(append_entry_to_top_table(table, &first, &mut words, current_line)); }
 				}
 			} else {
@@ -133,9 +185,9 @@ impl FromStr for Acon {
 		return {
 			if let Some(node) = stack.pop() {
 				match node.value {
-					Value::Array(_) => Err(AconError::TopNodeIsArray),
-					Value::String(_) => Err(AconError::InternalStringTop(Some(current_line))),
-					Value::Table(table) => Ok(Acon { table: table }),
+					Acon::Array(_) => Err(AconError::TopNodeIsArray),
+					Acon::String(_) => Err(AconError::InternalStringTop(Some(current_line))),
+					Acon::Table(table) => Ok(Acon::Table(table)),
 				}
 			} else {
 				Err(AconError::MissingStackTop(None))
@@ -147,7 +199,7 @@ impl FromStr for Acon {
 		use std::str::SplitWhitespace;
 		struct Node {
 			name: String,
-			value: Value,
+			value: Acon,
 		}
 		// END HELPER STRUCTURE //////////////////////////////////////////////
 
@@ -155,7 +207,7 @@ impl FromStr for Acon {
 		fn push_base_table(stack: &mut Vec<Node>) {
 			stack.push(Node {
 				name: "".to_string(),
-				value: Value::Table(Table::new()),
+				value: Acon::Table(Table::new()),
 			});
 		}
 
@@ -163,7 +215,7 @@ impl FromStr for Acon {
 			let name = words.next().unwrap_or("");
 			stack.push(Node {
 				name: name.to_string(),
-				value: Value::Array(Array::new()),
+				value: Acon::Array(Array::new()),
 			});
 		}
 
@@ -171,34 +223,34 @@ impl FromStr for Acon {
 			let name = words.next().unwrap_or("");
 			stack.push(Node {
 				name: name.to_string(),
-				value: Value::Table(Table::new()),
+				value: Acon::Table(Table::new()),
 			});
 		}
 
 		fn close_array_or_table(word: &str, stack: &mut Vec<Node>, line: usize) -> Result<(), AconError> {
 			if let Some(top) = stack.pop() {
 				match top.value {
-					Value::Array(_) if word != "]"
+					Acon::Array(_) if word != "]"
 						=> return Err(AconError::WrongClosingDelimiterExpectedArray(Some(line))),
-					Value::String(_) if word != "]"
+					Acon::String(_) if word != "]"
 						=> return Err(AconError::InternalStringTop(Some(line))),
-					Value::Table(_) if word != "}"
+					Acon::Table(_) if word != "}"
 						=> return Err(AconError::WrongClosingDelimiterExpectedTable(Some(line))),
 					_ => {}
 				}
 				if let Some(node) = stack.last_mut() {
 					match node.value {
-						Value::Array(ref mut array) => {
+						Acon::Array(ref mut array) => {
 							if top.name == "" {
 								array.push(top.value);
 							} else {
 								let mut new = Table::new();
 								new.insert(top.name, top.value);
-								array.push(Value::Table(new));
+								array.push(Acon::Table(new));
 							}
 						}
-						Value::String(_) => { return Err(AconError::InternalStringTop(Some(line))); }
-						Value::Table(ref mut table) => {
+						Acon::String(_) => { return Err(AconError::InternalStringTop(Some(line))); }
+						Acon::Table(ref mut table) => {
 							if table.contains_key(&top.name) {
 								return Err(AconError::OverwritingKey(Some(line)));
 							}
@@ -220,7 +272,7 @@ impl FromStr for Acon {
 			let first = first.unwrap_or("");
 			let acc = words.fold(first.to_string(), |acc, x| acc + " " + x);
 			let acc = acc.trim();
-			array.push(Value::String(acc.to_string()));
+			array.push(Acon::String(acc.to_string()));
 		}
 
 		fn append_entry_to_top_table(table: &mut Table,
@@ -234,7 +286,7 @@ impl FromStr for Acon {
 					}
 					let acc = words.fold("".to_string(), |acc, x| acc + " " + x);
 					let acc = acc.trim();
-					table.insert(key.to_string(), Value::String(acc.to_string()));
+					table.insert(key.to_string(), Acon::String(acc.to_string()));
 				}
 				&None => {}
 			}
@@ -243,95 +295,4 @@ impl FromStr for Acon {
 		// END HELPER FUNCTIONS //////////////////////////////////////////////
 
 	}
-}
-
-#[cfg(test)]
-mod tests {
-	use {Acon, AconError};
-
-	#[test]
-	fn neg_duplicate_keys() {
-		let value = r#"
-			key value1
-			key2 value2
-			key value3
-			key2 value4
-		"#;
-		let acon = value.parse::<Acon>();
-		assert_eq!(acon, Err(AconError::OverwritingKey(Some(4))));
-	}
-
-	#[test]
-	fn neg_duplicate_keys_table() {
-		let value = r#"
-			key value1
-			key2 value2
-			{ key
-			}
-			key2 value4
-		"#;
-		let acon = value.parse::<Acon>();
-		assert_eq!(acon, Err(AconError::OverwritingKey(Some(5))));
-	}
-
-	#[test]
-	fn neg_duplicate_keys_array() {
-		let value = r#"
-			key value1
-			key2 value2
-			[ key
-			]
-			key2 value4
-		"#;
-		let acon = value.parse::<Acon>();
-		assert_eq!(acon, Err(AconError::OverwritingKey(Some(5))));
-	}
-
-	#[test]
-	fn neg_duplicate_keys_nested() {
-		let value = r#"
-			{ key
-				{ key
-					key value
-					[
-					]
-					key value
-				}
-			}
-		"#;
-		let acon = value.parse::<Acon>();
-		assert_eq!(acon, Err(AconError::OverwritingKey(Some(7))));
-	}
-
-
-	#[test]
-	fn inspect_message() {
-		let value = r#"
-			[
-				{ message
-					recipient me
-					sender you
-					[ content
-						Hey what is this ACON thingy all about?
-						I mean, we've got TOML, JSON, XML, and SGML.
-						Why do we need this data serilization language?
-					]
-				}
-				{ message
-					sender me
-					recipient you
-					[ content
-						ACON means Awk-Compatible Object Notation.
-						TOML, JSON, etc are great serialization languages, but they're quite complex.
-						We need tools and languages that are easily
-						parsable and friendly for bash scripting.
-						ACON allows just that!
-					]
-				}
-			]
-		"#;
-		let acon = value.parse::<Acon>();
-		assert_eq!(acon.unwrap().table.get("").unwrap().array().get(1).unwrap().table().get("message").unwrap().table().get("recipient").unwrap().string(), "you");
-	}
-
 }
