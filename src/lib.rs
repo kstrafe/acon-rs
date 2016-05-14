@@ -26,73 +26,40 @@ impl FromStr for Acon {
 	fn from_str(s: &str) -> Result<Self, Self::Err> {
 		use std::str::{Lines, SplitWhitespace};
 
-		let mut table = Table::new();
+		let mut root_table = Table::new();
 		let mut stack = vec![];
 		let mut lines = s.lines();
-		#[derive(Clone, Copy)]
-		enum State { Array, Table }
+
 		struct Node {
 			name: String,
-			state: State,
-			table: Table,
+			value: Value,
 		}
 
 		stack.push(Node {
 			name: "".to_string(),
-			state: State::Table,
-			table: table
+			value: Value::Table(root_table),
 		});
 
-		fn get_state(stack: &Vec<Node>) -> Option<State> {
-			if let Some(last) = stack.last() {
-				Some(last.state)
-			} else {
-				None
-			}
-		};
-
-		fn push_state(stack: &mut Vec<Node>, name: String, state: State) {
-
-		}
-
 		for line in lines {
-
-			if let Some(state) = get_state(&stack) {
-
-				let mut words = line.split_whitespace();
-
-				match state {
-					State::Table => {
-						if let Some(word) = words.next() {
-							match word {
-								"{" => {}
-								"}" => {}
-								"[" => {}
-								"]" => {}
-								name @ _ => { }
-							}
-						}
-					}
-					State::Array => {
-						if let Some(word) = words.next() {
-							match word {
-								"{" => {}
-								"}" => {}
-								"[" => {}
-								"]" => {}
-								name @ _ => {
-								}
-							}
-						}
-					}
+			let mut words = line.split_whitespace();
+			if let Some(top) = stack.last_mut() {
+				match top.value {
+					Value::Array(ref mut array) => {}
+					Value::String(ref mut string) => {}
+					Value::Table(ref mut table) => {}
 				}
-
-			} else {
-				panic!("{}", "There is no state!");
 			}
 		}
 
-		Err(AconError::Error)
+		if let Some(node) = stack.pop() {
+			match node.value {
+				Value::Array(array) => Err(AconError::Error),
+				Value::String(string) => Err(AconError::Error),
+				Value::Table(table) => Ok(Acon { table: table }),
+			}
+		} else {
+			Err(AconError::Error)
+		}
 	}
 }
 
