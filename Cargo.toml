@@ -2,7 +2,7 @@
 name = "acon"
 version = "0.3.3"
 authors = ["Bourgond Aries <macocio@gmail.com>"]
-license = "GPLv3"
+license = "GPL-3.0"
 readme = "README.md"
 keywords = ["encoding", "decoding", "acon"]
 repository = "https://github.com/BourgondAries/acon-rs"
