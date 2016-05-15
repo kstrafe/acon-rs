@@ -97,6 +97,11 @@
 //! assert_eq!(result.path("key(32)with_space(46)and_dot").unwrap().string(), "value(10)with(10)new(10)lines, which is interesting");
 //! ```
 //!
+//! # Comments #
+//!
+//! A line is ignored if the first word is a '#'. If you need this to be the first word
+//! on a line, you can use the escape code '(35)'.
+//!
 
 #![allow(items_after_statements)]
 #![deny(missing_docs)]
@@ -384,6 +389,7 @@ impl FromStr for Acon {
 					"[" => { push_array(&mut words, &mut stack); continue; }
 					word @ "}" | word @ "]" => { try!(close_array_or_table(word, &mut stack, current_line)); continue; }
 					"$" => { try!(close_all_nestings(&mut stack, current_line)); continue; }
+					"#" => continue,
 					_ => { }
 				}
 			}

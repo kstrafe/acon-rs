@@ -318,3 +318,41 @@ fn attempt_edges() {
 	let acon = key_eq(value, ".1.0.Sit", "vitae");
 	key_eqt(&acon, "deleniti.0", "placeat quia");
 }
+
+#[test]
+fn named_array_in_unnamed_array() {
+	let value = r#"
+		[
+			[ lorem
+				ipsum
+			]
+		]
+	"#;
+	key_eq(value, ".0.lorem.0", "ipsum");
+}
+
+#[test]
+fn named_table_in_unnamed_array() {
+	let value = r#"
+		[
+			{ lorem
+				ipsum dolor
+			}
+		]
+	"#;
+	key_eq(value, ".0.lorem.ipsum", "dolor");
+}
+
+#[test]
+fn comment() {
+	let value = r#"
+		# Comment
+		[
+			{ lorem
+				ipsum dolor
+			}
+		]
+	"#;
+	let parsed = key_eq(value, ".0.lorem.ipsum", "dolor");
+	assert_eq!(parsed.table().contains_key("#"), false);
+}
