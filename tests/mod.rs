@@ -3,6 +3,16 @@
 extern crate acon;
 use acon::{Acon, AconError};
 
+fn key_eq(input: &str, key: &str, string: &str) -> Acon {
+	let acon = input.parse::<Acon>().unwrap();
+	assert_eq!(acon.path(key).unwrap().string(), string);
+	acon
+}
+
+fn key_eqt(acon: &Acon, key: &str, string: &str) {
+	assert_eq!(acon.path(key).unwrap().string(), string);
+}
+
 #[test]
 fn neg_duplicate_keys() {
 	let value = r#"
@@ -108,8 +118,7 @@ fn inspect_dollar_closing() {
 		end of the stream, clearing that stream.
 	]
 	"#;
-	let acon = value.parse::<Acon>().unwrap();
-	assert_eq!(acon.path("table.table.table.array.0.table.key"), Some(&Acon::String("value".to_string())));
+	key_eq(value, "table.table.table.array.0.table.key", "value");
 }
 
 #[test]
@@ -160,4 +169,152 @@ fn neg_ending_table() {
 	"#;
 	let acon = value.parse::<Acon>();
 	assert_eq!(acon, Err(AconError::MultipleTopNodes));
+}
+
+#[test]
+fn unnamed_table() {
+	let value = r#"
+	{
+		key value
+	}
+	"#;
+	key_eq(value, ".key", "value");
+}
+
+#[test]
+fn unnamed_table_2() {
+	let value = r#"
+	{ named
+		key value
+	}
+	"#;
+	key_eq(value, "named.key", "value");
+}
+
+#[test]
+fn unnamed_array() {
+	let value = r#"
+	[
+		[
+			[
+				0
+	$
+	"#;
+	key_eq(value, ".0.0.0", "0");
+}
+
+#[test]
+fn unnamed_array_2() {
+	let value = r#"
+	[
+		[
+			[ name
+				0
+	$
+	"#;
+	key_eq(value, ".0.0.name.0", "0");
+}
+
+#[test]
+fn unnamed_elements() {
+	let value = r#"
+		{ a
+			{
+				b c
+			}
+		}
+	"#;
+	key_eq(value, "a..b", "c");
+}
+
+#[test]
+fn similarity_acon() {
+	let value = r#"
+		{ menu
+			id file
+			value File
+			{ popup
+				[ menuitem
+					{
+						value New
+						onclick CreateNewDoc()
+					}
+					{
+						value Open
+						onclick OpenDoc()
+					}
+					{
+						value Close
+						onclick CloseDoc()
+					}
+				]
+			}
+		}
+	"#;
+	key_eq(value, "menu.popup.menuitem.2.value", "Close");
+}
+
+#[test]
+fn dot_separation() {
+	let value = r#"
+		{
+			{
+				lorem ipsum
+			}
+		}
+	"#;
+	key_eq(value, "..lorem", "ipsum");
+}
+
+#[test]
+fn dot_separation_in_array() {
+	let value = r#"
+		[
+			{
+				lorem ipsum
+			}
+		]
+	"#;
+	key_eq(value, ".0.lorem", "ipsum");
+}
+
+#[test]
+fn dot_separation_in_array_named_table() {
+	let value = r#"
+		[
+			{ dolor
+				lorem ipsum
+			}
+		]
+	"#;
+	key_eq(value, ".0.dolor.lorem", "ipsum");
+}
+
+#[test]
+fn attempt_edges() {
+	let value = r#"
+		lorem ipsum
+		{ dolor
+			sit amet
+		}
+		[ deleniti
+		placeat quia
+		]
+		[
+			[
+				{ ipsam
+					beatae vel
+					Iusto enim
+				}
+			]
+			[
+				{
+					aut quidem
+					Sit vitae
+				}
+			]
+		]
+	"#;
+	let acon = key_eq(value, ".1.0.Sit", "vitae");
+	key_eqt(&acon, "deleniti.0", "placeat quia");
 }
