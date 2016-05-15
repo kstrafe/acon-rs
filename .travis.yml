@@ -6,3 +6,6 @@ rust:
 sudo: false
 script:
   - cargo test --verbose
+notifications:
+  email:
+    on_success: never
