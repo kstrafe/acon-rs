@@ -13,6 +13,3 @@ A native Rust ACON encoder and decoder. Provides FromStr and Display for deseria
 and serialization respectively. Comes with some utilities to make working with the
 data structure easier.
 """
-
-[dependencies]
-clippy = "0.0.67"

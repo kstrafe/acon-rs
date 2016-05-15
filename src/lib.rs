@@ -100,8 +100,6 @@
 
 #![allow(items_after_statements)]
 #![deny(missing_docs)]
-#![feature(plugin)]
-#![plugin(clippy)]
 
 use std::collections::BTreeMap;
 use std::str::FromStr;
