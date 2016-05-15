@@ -208,6 +208,7 @@ pub enum AconError {
 
 #[allow(dead_code)]
 impl AconError {
+	/// Prints a human-friendly error string for the given parse error.
 	fn reason(&self) -> String {
 		use AconError::*;
 		match *self {
