@@ -91,10 +91,10 @@
 //! ```rust
 //! use acon::Acon;
 //! let input = r#"
-//!   key(32)with_space(47)and_dot value(10)with(10)new(10)lines, which is interesting
+//!   key(32)with_space(46)and_dot value(10)with(10)new(10)lines, which is interesting
 //! "#;
 //! let result = input.parse::<Acon>().unwrap();
-//! assert_eq!(result.path("key(32)with_space(47)and_dot").unwrap().string(), "value(10)with(10)new(10)lines, which is interesting");
+//! assert_eq!(result.path("key(32)with_space(46)and_dot").unwrap().string(), "value(10)with(10)new(10)lines, which is interesting");
 //! ```
 //!
 
