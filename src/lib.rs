@@ -103,10 +103,10 @@
 //! on a line, you can use the escape code '(35)'.
 //!
 
-#![allow(items_after_statements)]
 #![deny(missing_docs)]
-#![feature(plugin)]
-#![plugin(clippy)]
+#![cfg_attr(feature="clippy", feature(plugin))]
+#![cfg_attr(feature="clippy", plugin(clippy))]
+#![cfg_attr(feature="clippy", allow(items_after_statements))]
 
 use std::collections::BTreeMap;
 use std::str::FromStr;
