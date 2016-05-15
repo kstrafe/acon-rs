@@ -1,9 +1,66 @@
 //! An ACON-parsing library
 //!
-//! This library is an ACON-to-tree parser that deserializes text.
+//! This crate contains an ACON-to-tree parser that deserializes text.
+//! It can also serialize an ACON tree into text.
 //!
+//! ACON stands for Awk-Compatible Object Notation.
+//! It is used because of its simplicity and versatility.
+//!
+//! # Examples of Acon #
+//!
+//! ```notrust
+//! key value
+//! other-key value
+//! and_yet_another_key and some values
+//! ```
+//! The key is always the first word on the line. The value consists of all remaining words on
+//! that line, trimmed by whitespace. Any superfluous whitespace between words is made
+//! into a single space. This format makes it very easy to process with awk.
+//!
+//! # Tables #
+//!
+//! ```notrust
+//! { table
+//!   key value
+//! }
+//! { other-table
+//!   key value
+//! }
+//! key value
+//! ```
+//!
+//! A table is denoted by the first word being a curly opening brace on a line. The name
+//! of the table is the second word. If there is no name, the table's name will be empty.
+//!
+//! # Arrays #
+//!
+//! ```notrust
+//! [ array-name
+//!   here is a single value, every line is its own value
+//!   this is the second entry
+//! ]
+//! ```
+//!
+//! Arrays start when the first word on a line is an opening square bracket.
+//! An array has no keys, only values. Arrays are ordered. Empty lines
+//! Will become empty elements. In tables empty lines are simply ignored.
+//!
+//! # Super Delimiter #
+//!
+//! If you have some deeply nesting structure, or a program that may not finish
+//! writing all closing delimiters, you can use '$' as a delimiter. This will
+//! close all open tables and arrays.
+//!
+//! ```notrust
+//! { deeply
+//!    { nested
+//!       [ arrays
+//! $ <- we've had enough, anything after the $ on this line is skipped.
+//!
+//! key value
+//! ```
 
-//#![deny(missing_docs)]
+#![deny(missing_docs)]
 #![feature(plugin)]
 #![plugin(clippy)]
 #![allow(items_after_statements)]
@@ -14,17 +71,26 @@ mod tests;
 use std::collections::BTreeMap;
 use std::str::FromStr;
 
+/// Vec of Acon values
 pub type Array = Vec<Acon>;
+
+/// BTreeMap of strings mapped to Acon
 pub type Table = BTreeMap<String, Acon>;
 
+/// Enumeration over all variable types in ACON
 #[derive(PartialEq, Clone, Debug)]
 pub enum Acon {
+	/// Array type contains a Vec of Acon
 	Array(Array),
+	/// String type contains a simple std::string::String
 	String(String),
+	/// Table consists of a BTreeMap<String, Acon>
 	Table(Table),
 }
 
 impl Acon {
+
+	/// Assert that this value is an array, else panic
 	pub fn array(&self) -> &Array {
 		match *self {
 			Acon::Array(ref array) => array,
@@ -32,6 +98,7 @@ impl Acon {
 		}
 	}
 
+	/// Assert that this value is a string, else panic
 	pub fn string(&self) -> &String {
 		match *self {
 			Acon::String(ref string) => string,
@@ -39,6 +106,7 @@ impl Acon {
 		}
 	}
 
+	/// Assert that this value is a table, else panic
 	pub fn table(&self) -> &Table {
 		match *self {
 			Acon::Table(ref table) => table,
@@ -46,6 +114,21 @@ impl Acon {
 		}
 	}
 
+	/// Retrieve a reference to an entry via its path
+	/// Paths are dot-separated.
+	///
+	///  ```
+	///  use acon::Acon;
+	///  let input = r#"
+	///  { table
+	///    [ array
+	///      value
+	///  $
+	///  "#;
+	///  let result = input.parse::<Acon>().unwrap();
+	///  assert_eq!(result.path("table.array.0").unwrap().string(), "value");
+	///  ```
+	///
 	pub fn path(&self, path: &str) -> Option<&Acon> {
 		let paths = path.split('.');
 		let mut current = self;
@@ -59,6 +142,8 @@ impl Acon {
 		Some(current)
 	}
 
+	/// Retrieve a mutable reference to an entry via its path.
+	/// Paths are dot-separated.
 	pub fn path_mut(&mut self, path: &str) -> Option<&mut Acon> {
 		let paths = path.split('.');
 		let mut current = self;
@@ -72,6 +157,7 @@ impl Acon {
 		Some(current)
 	}
 
+	/// Retrieve a reference to an entry
 	pub fn get(&self, path: &str) -> Option<&Acon> {
 		match *self {
 			Acon::Array(ref array) => {
@@ -85,6 +171,7 @@ impl Acon {
 		}
 	}
 
+	/// Retrieve a mutable reference to an entry
 	pub fn get_mut(&mut self, path: &str) -> Option<&mut Acon> {
 		match *self {
 			Acon::Array(ref mut array) => {
@@ -99,14 +186,23 @@ impl Acon {
 	}
 }
 
+/// Errors that come about during parsing
 #[derive(PartialEq, Clone, Debug)]
 pub enum AconError {
+	/// Indicates that there are too many closing delimiters compared to opening
+	/// delimiters
 	ExcessiveClosingDelimiter(Option<usize>),
+	/// Acon::String is the top of the stack. This indicates an interal error
 	InternalStringTop(Option<usize>),
+	/// The stack top is missing, indicating that something popped the top
 	MissingStackTop(Option<usize>),
+	/// If the top node of the stack is an array, this indicates an error in logic
 	TopNodeIsArray,
+	/// The key at this line is already present in the parent table
 	OverwritingKey(Option<usize>),
+	/// Got a } but expected a ]
 	WrongClosingDelimiterExpectedArray(Option<usize>),
+	/// Got a ] but expected a }
 	WrongClosingDelimiterExpectedTable(Option<usize>),
 }
 
@@ -209,6 +305,24 @@ impl std::fmt::Display for Acon {
 impl FromStr for Acon {
 	type Err = AconError;
 
+	/// Parse a string into an Acon value
+	///
+	///  ```
+	///  use acon::Acon;
+	///  let input = r#"
+	///    key value
+	///    { table-name
+	///      key value
+	///      key2 value2
+	///    }
+	///  "#;
+	///  let result = input.parse::<Acon>().unwrap();
+	///  match result {
+	///    Acon::Table(_) => assert!(true),
+	///    _ => assert!(false),
+	///  }
+	///  ```
+	///
 	fn from_str(s: &str) -> Result<Self, Self::Err> {
 		let mut stack = vec![];
 		let lines = s.lines();
