@@ -229,7 +229,10 @@ pub enum AconError {
 	InternalStringTop(Option<usize>),
 	/// The stack top is missing, indicating that something popped the top
 	MissingStackTop(Option<usize>),
-	/// If the top node of the stack is an array, this indicates an error in logic
+	/// There is more than one top node after parsing the input. Unterminated tables.
+	MultipleTopNodes,
+	/// If the top node of the stack is an array, this indicates that there's an
+	/// unterminated array
 	TopNodeIsArray,
 	/// The key at this line is already present in the parent table
 	OverwritingKey(Option<usize>),
@@ -260,6 +263,9 @@ bug in the parser. Please report this along with the input to the repository mai
 				let first = match line { Some(line) => format!("On line {}, t", line), None => "T".to_string() };
 				format!("{}he top of the stack is missing. This indicates an internal error, as it's never supposed to
 happen. Please contact the maintainer of the ACON repository.", first)
+			}
+			MultipleTopNodes => {
+				"There is an unterminated table, you can append '$' to the input or try terminating it by finding a flaw in the input.".to_string()
 			}
 			TopNodeIsArray => {
 				"The top of the stack is an array. This indicates that there is an unterminated array all the way
@@ -399,7 +405,13 @@ impl FromStr for Acon {
 				match node.value {
 					Acon::Array(_) => Err(AconError::TopNodeIsArray),
 					Acon::String(_) => Err(AconError::InternalStringTop(Some(current_line))),
-					Acon::Table(table) => Ok(Acon::Table(table)),
+					Acon::Table(table) => {
+						if !stack.is_empty() {
+							Err(AconError::MultipleTopNodes)
+						} else {
+							Ok(Acon::Table(table))
+						}
+					}
 				}
 			} else {
 				Err(AconError::MissingStackTop(None))
