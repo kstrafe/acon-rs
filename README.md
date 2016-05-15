@@ -1,6 +1,7 @@
 # acon #
 
 [![Build Status](https://travis-ci.org/BourgondAries/acon-rs.svg?branch=master)](https://travis-ci.org/BourgondAries/acon-rs)
+
 [Documentation](http://acon.stravers.net/acon)
 
 ACON is a minimalistic data serialization language. It stands for Awk-Compatible Object Notation and is geared towards command-line usage using acon tools.
