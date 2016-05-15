@@ -59,6 +59,34 @@
 //!
 //! key value
 //! ```
+//!
+//! # Dot-Pathing #
+//!
+//! All values can be retrieved using a dot-separated key-path.
+//!
+//! ```rust
+//! use acon::Acon;
+//! let input = r#"
+//! { table
+//!    key value
+//!   [ my-array
+//!     { subtable
+//!       anything goes
+//!     }
+//!   ]
+//! }"#;
+//! let result = input.parse::<Acon>().unwrap();
+//! assert_eq!(result.path("table.my-array.0.subtable.anything").unwrap().string(), "goes");
+//! ```
+//!
+//! # Escaping #
+//!
+//! If you want a new-line or explicit whitespace in your value, you need to use escape codes.
+//! Dots and whitespaces in keys also require escape codes.
+//! Escaping is done by inserting (number), where number is the numeric code point value.
+//! This library handles escaping transparently. To escape or unescape is only necessary for
+//! other utilities or viewing the data in another way.
+//!
 
 #![deny(missing_docs)]
 #![feature(plugin)]
