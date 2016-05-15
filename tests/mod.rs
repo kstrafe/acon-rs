@@ -139,3 +139,25 @@ fn dollar_duplicate() {
 	let acon = value.parse::<Acon>();
 	assert_eq!(acon, Err(AconError::OverwritingKey(Some(8))));
 }
+
+#[test]
+fn neg_ending_array() {
+	let value = r#"
+	[ array
+		value
+
+	"#;
+	let acon = value.parse::<Acon>();
+	assert_eq!(acon, Err(AconError::TopNodeIsArray));
+}
+
+#[test]
+fn neg_ending_table() {
+	let value = r#"
+	{ table
+		key value
+
+	"#;
+	let acon = value.parse::<Acon>();
+	assert_eq!(acon, Err(AconError::MultipleTopNodes));
+}
