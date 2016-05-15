@@ -1,4 +1,7 @@
-use {Acon, AconError};
+#![cfg(test)]
+
+extern crate acon;
+use acon::{Acon, AconError};
 
 #[test]
 fn neg_duplicate_keys() {

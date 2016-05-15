@@ -65,9 +65,6 @@
 #![plugin(clippy)]
 #![allow(items_after_statements)]
 
-#[cfg(test)]
-mod tests;
-
 use std::collections::BTreeMap;
 use std::str::FromStr;
 
