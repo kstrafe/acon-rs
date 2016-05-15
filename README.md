@@ -12,7 +12,7 @@ To include acon in your project.
 ```toml
 # Cargo.toml
 [dependencies]
-acon = "0.4.0"
+acon = "0.5.0"
 ```
 
 # License #
