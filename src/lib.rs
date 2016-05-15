@@ -88,10 +88,10 @@
 //! other utilities or viewing the data in another way.
 //!
 
+#![allow(items_after_statements)]
 #![deny(missing_docs)]
 #![feature(plugin)]
 #![plugin(clippy)]
-#![allow(items_after_statements)]
 
 use std::collections::BTreeMap;
 use std::str::FromStr;
