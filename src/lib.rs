@@ -86,6 +86,16 @@
 //! Escaping is done by inserting (number), where number is the numeric code point value.
 //! This library handles escaping transparently. To escape or unescape is only necessary for
 //! other utilities or viewing the data in another way.
+//! When using dot-pathing, you still need to explicitly write the parenthesized elements.
+//!
+//! ```rust
+//! use acon::Acon;
+//! let input = r#"
+//!   key(32)with_space(47)and_dot value(10)with(10)new(10)lines, which is interesting
+//! "#;
+//! let result = input.parse::<Acon>().unwrap();
+//! assert_eq!(result.path("key(32)with_space(47)and_dot").unwrap().string(), "value(10)with(10)new(10)lines, which is interesting");
+//! ```
 //!
 
 #![allow(items_after_statements)]
@@ -99,7 +109,7 @@ use std::str::FromStr;
 /// Vec of Acon values
 pub type Array = Vec<Acon>;
 
-/// BTreeMap of strings mapped to Acon
+/// `BTreeMap` of strings mapped to Acon
 pub type Table = BTreeMap<String, Acon>;
 
 /// Enumeration over all variable types in ACON
