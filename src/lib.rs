@@ -911,4 +911,19 @@ mod tests {
 		let parsed = key_eq(value, ".0.lorem.ipsum", "dolor");
 		assert_eq!(parsed.table().contains_key("#"), false);
 	}
+
+	#[test]
+	fn table_comment() {
+		let value = r#"
+			[
+				{ lorem
+					# sit amet
+					ipsum dolor
+					# echo alpha
+			$ # sequi
+		"#;
+		let parsed = key_eq(value, ".0.lorem.ipsum", "dolor");
+		assert_eq!(parsed.table().contains_key("#"), false);
+		assert_eq!(parsed.table().contains_key("$"), false);
+	}
 }
