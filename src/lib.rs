@@ -107,6 +107,9 @@
 #![cfg_attr(feature="clippy", feature(plugin))]
 #![cfg_attr(feature="clippy", plugin(clippy))]
 #![cfg_attr(feature="clippy", allow(items_after_statements))]
+#![feature(test)]
+
+extern crate test;
 
 use std::collections::BTreeMap;
 use std::str::FromStr;
@@ -557,6 +560,7 @@ impl FromStr for Acon {
 #[cfg(test)]
 mod tests {
 	use super::*;
+	use test::{Bencher, black_box};
 
 	fn key_eq(input: &str, key: &str, string: &str) -> Acon {
 		let acon = input.parse::<Acon>().unwrap();
@@ -925,5 +929,23 @@ mod tests {
 		let parsed = key_eq(value, ".0.lorem.ipsum", "dolor");
 		assert_eq!(parsed.table().contains_key("#"), false);
 		assert_eq!(parsed.table().contains_key("$"), false);
+	}
+
+	#[bench]
+	fn large_table(bench: &mut Bencher) {
+		use std::fs::File;
+		use std::io::Read;
+
+		let mut stream = File::open("lorem ipsum").unwrap();
+		let mut string = String::new();
+		stream.read_to_string(&mut string).expect("Unable to read file to memory");
+
+		fn parse(string: &str) -> Acon {
+			string.parse::<Acon>().unwrap()
+		}
+
+		bench.iter(|| {
+			black_box(parse(&string));
+		});
 	}
 }
