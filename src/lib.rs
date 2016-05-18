@@ -936,9 +936,12 @@ mod tests {
 		use std::fs::File;
 		use std::io::Read;
 
-		let mut stream = File::open("lorem ipsum").unwrap();
+		let mut stream = match File::open("lorem ipsum") {
+			Ok(stream) => stream,
+			Err(_) => { println!("{}", "Unable to open file, skipping"); return; }
+		};
 		let mut string = String::new();
-		stream.read_to_string(&mut string).expect("Unable to read file to memory");
+		stream.read_to_string(&mut string).expect("Unable to read file to memory, run contamine to create the file");
 
 		fn parse(string: &str) -> Acon {
 			string.parse::<Acon>().unwrap()
@@ -946,6 +949,27 @@ mod tests {
 
 		bench.iter(|| {
 			black_box(parse(&string));
+		});
+	}
+
+	#[bench]
+	fn split_complexity(bench: &mut Bencher) {
+		use std::fs::File;
+		use std::io::Read;
+
+		let mut stream = match File::open("lorem ipsum") {
+			Ok(stream) => stream,
+			Err(_) => { println!("{}", "Unable to open file, skipping"); return; }
+		};
+		let mut string = String::new();
+		stream.read_to_string(&mut string).expect("Unable to read file to memory, run contamine to create the file");
+
+		fn split(string: &str) {
+			let _ = string.split(' ');
+		}
+
+		bench.iter(|| {
+			black_box(split(&string));
 		});
 	}
 }
