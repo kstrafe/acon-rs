@@ -6,5 +6,5 @@ command -v lorem >/dev/null 2>&1 || {
 	echo "Command lorem not found. Aborting"
 	exit 1
 }
-echo "$(lorem -p 100000)" | sed 's/^/\t/g' >> 'lorem ipsum'
+echo "$(lorem -p 10000)" | sed 's/^/\t/g' >> 'lorem ipsum'
 echo '$' >> 'lorem ipsum'
