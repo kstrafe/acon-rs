@@ -15,7 +15,7 @@ data structure easier.
 """
 
 [dependencies]
-clippy = { version = "0.0.67", optional = true }
+# clippy = { version = "0.0.67", optional = true }
 
 [features]
 default=[]
